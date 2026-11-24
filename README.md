@@ -2,7 +2,7 @@
 
 Aplicación web de inteligencia de negocios que convierte los resultados del reto ETL (*dos fuentes, una decisión*) en una herramienta para **decidir qué libros comprar primero con un presupuesto limitado**, sin ejecutar notebooks, escribir SQL ni tocar el código.
 
-> 🎥 **Video de demostración:** _(pegue aquí el enlace)_  ·  📦 **Repositorio ETL (actividad anterior):** https://github.com/Andreino92/reto-etl-libros
+> 🎥 **Video de demostración:** _(https://drive.google.com/file/d/1Cq4X_kBCqx9Vs7_7OyAepjg_cCzJDnNE/view?usp=sharing)_  ·  📦 **Repositorio ETL (actividad anterior):** https://github.com/Andreino92/reto-etl-libros
 
 ## Problema, audiencia y objetivo
 - **Audiencia:** coordinación de adquisiciones de una biblioteca de barrio. **Alcance:** táctico.
