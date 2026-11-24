@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BiblioPrioriza · Dashboard decisional</title>
+  <meta name="description" content="Dashboard de inteligencia de negocios para priorizar la compra de libros con presupuesto limitado.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Cpath d='M9 8h9a4 4 0 0 1 0 8H9zm0 8h10a4 4 0 0 1 0 8H9z' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>BiblioPrioriza</h1>
+    <p>¿Qué libros conviene comprar primero con un presupuesto limitado?</p>
+  </div>
+  <div class="status">
+    <span class="chip chip-esc" id="chipEscenario">Escenario: —</span>
+    <span class="chip chip-sim hidden" id="chipSim">Simulación activa</span>
+    <span class="muted small" id="ultima">Consultando…</span>
+    <button class="btn" id="btnRefrescar" title="Vuelve a consultar PostgreSQL">Actualizar datos</button>
+  </div>
+</header>
+
+<section class="filters" aria-label="Filtros">
+  <label>Escenario
+    <select id="fEscenario"></select>
+  </label>
+  <label>Categoría
+    <select id="fCategoria"><option value="">Todas</option></select>
+  </label>
+  <label>Precio máximo: <b id="vPrecio">—</b>
+    <input type="range" id="fPrecio" min="0" max="100" step="1" value="100">
+  </label>
+  <label>Buscar título
+    <input type="search" id="fTexto" placeholder="Ej.: garden" maxlength="80">
+  </label>
+  <label class="check"><input type="checkbox" id="fCoinc"> Solo con datos en Open Library</label>
+  <button class="btn btn-ghost" id="btnReset">Restablecer filtros</button>
+</section>
+<div class="active-row" id="activos" aria-live="polite"></div>
+
+<main id="app">
+  <div class="banner" id="banner" role="status"></div>
+  <div class="alert hidden" id="error" role="alert"></div>
+
+  <section class="kpis" id="kpis" aria-label="Indicadores clave"></section>
+
+  <div class="grid g2">
+    <article class="card">
+      <h2>Libros a comprar, en orden de prioridad</h2>
+      <p class="why">Compara las entidades seleccionadas por el indicador ediciones por libra (más alto = más trayectoria editorial por cada £ gastada).</p>
+      <div class="chart tall" id="chTop"></div>
+    </article>
+
+    <article class="card sim" id="simulador">
+      <h2>Simulador de decisiones</h2>
+      <p class="why">Cambie los umbrales y vea qué libros entran o salen. Es solo un parámetro de análisis: no modifica PostgreSQL.</p>
+      <div class="sliders">
+        <label>Estrellas mínimas (fuente A): <b id="vMe"></b>
+          <input type="range" id="sMe" min="0" max="5" step="1"></label>
+        <label>Ediciones mínimas en Open Library (fuente B): <b id="vMd"></b>
+          <input type="range" id="sMd" min="0" max="100" step="1"></label>
+        <label>Tamaño de la lista (top K): <b id="vK"></b>
+          <input type="range" id="sK" min="1" max="30" step="1"></label>
+      </div>
+      <div class="cmp">
+        <div class="cmp-col"><span class="muted small">SELECCIÓN ORIGINAL</span><strong id="selOrig">—</strong><span class="small muted" id="selOrigTxt"></span></div>
+        <div class="cmp-col"><span class="muted small">SELECCIÓN SIMULADA</span><strong id="selSim">—</strong><span class="small muted" id="selSimTxt"></span></div>
+      </div>
+      <div id="difSim" class="diffs"></div>
+      <button class="btn btn-ghost" id="btnResetSim">Restablecer valores originales</button>
+    </article>
+  </div>
+
+  <div class="grid g3">
+    <article class="card">
+      <h2>Precio frente a ediciones</h2>
+      <p class="why">Relaciona dos variables de la regla. El tamaño del punto es la calificación; la línea es el umbral de ediciones. Clic en un punto para ver el detalle.</p>
+      <div class="chart" id="chScatter"></div>
+    </article>
+    <article class="card">
+      <h2>Decisión por categoría</h2>
+      <p class="why">Composición de cada categoría. Clic en una barra para profundizar (drill-down) en esa categoría.</p>
+      <div class="chart" id="chComp"></div>
+    </article>
+    <article class="card">
+      <h2>Distribución del indicador</h2>
+      <p class="why">Cuántos libros hay en cada tramo de ediciones por libra; en verde, los seleccionados.</p>
+      <div class="chart" id="chHist"></div>
+    </article>
+  </div>
+
+  <article class="card" id="comparacion">
+    <h2>Comparación de escenarios</h2>
+    <p class="why">Tres variantes <b>independientes</b> de los mismos datos, evaluadas con los mismos umbrales del simulador. No son períodos y no se suman.</p>
+    <div class="esc-cards" id="escCards"></div>
+    <div class="chart wide" id="chEsc"></div>
+  </article>
+
+  <article class="card">
+    <div class="card-head">
+      <h2>Tabla de detalle y entidades priorizadas</h2>
+      <button class="btn btn-ghost" id="btnCsv">Descargar CSV</button>
+    </div>
+    <p class="why">Ordene con clic en el encabezado. Clic en una fila para abrir el detalle del libro en los tres escenarios.</p>
+    <div class="table-wrap"><table id="tabla"><thead></thead><tbody></tbody></table></div>
+  </article>
+</main>
+
+<aside id="drawer" class="drawer hidden" aria-label="Detalle del libro">
+  <div class="drawer-head"><h3 id="dTitulo">Detalle</h3><button class="btn btn-ghost" id="dCerrar" aria-label="Cerrar">Cerrar ✕</button></div>
+  <div id="dBody"></div>
+</aside>
+<div id="scrim" class="scrim hidden"></div>
+
+<footer class="foot muted small">
+  Datos: PostgreSQL · tabla <code>decision_libros</code> (resultado del reto ETL). Fuentes: books.toscrape.com y Open Library.
+  Los precios del portal son ficticios; el resultado ilustra el método.
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

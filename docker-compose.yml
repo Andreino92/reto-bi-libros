@@ -1,0 +1,35 @@
+# Levanta PostgreSQL (con los datos del ETL cargados desde database/datos.sql) y la aplicación.
+#   docker compose up -d --build   ->  http://localhost:8000
+# Credenciales de DESARROLLO (no personales). Cámbielas con un archivo .env si lo desea.
+services:
+  db:
+    image: postgres:16
+    container_name: reto_bi_pg
+    environment:
+      POSTGRES_USER: ${PGUSER:-reto}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-reto}
+      POSTGRES_DB: ${PGDATABASE:-retoetl}
+    ports:
+      - "5433:5432"          # 5433 en su equipo, para no chocar con la base del reto ETL (5432)
+    volumes:
+      - bi_pgdata:/var/lib/postgresql/data
+      - ./database/datos.sql:/docker-entrypoint-initdb.d/10-datos.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-reto} -d ${PGDATABASE:-retoetl}"]
+      interval: 3s
+      retries: 20
+  api:
+    build: .
+    container_name: reto_bi_api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${PGUSER:-reto}:${PGPASSWORD:-reto}@db:5432/${PGDATABASE:-retoetl}
+      ORIG_MIN_ESTRELLAS: ${ORIG_MIN_ESTRELLAS:-3}
+      ORIG_MIN_EDICIONES: ${ORIG_MIN_EDICIONES:-5}
+      ORIG_TOP_K: ${ORIG_TOP_K:-10}
+    ports:
+      - "8000:8000"
+volumes:
+  bi_pgdata:
